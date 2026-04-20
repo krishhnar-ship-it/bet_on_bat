@@ -1,5 +1,4 @@
 <?php
-// Only one session_start() - already in config.php, but safe fallback
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
@@ -14,14 +13,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (empty($identifier) || empty($password)) {
         $error = "Please enter username/email and password.";
     } else {
-        // Special admin check - this MUST be before normal user check
         if ($identifier === 'admin@betonbat.com' && $password === 'admin123') {
             $_SESSION['admin_logged_in'] = true;
             header("Location: admin_approve.php?key=secret123");
             exit;
         }
 
-        // Normal user login
         $user = authenticateUser($pdo, $identifier, $password);
 
         if ($user) {
@@ -77,8 +74,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       font-size: 2.1rem;
       margin-bottom: 36px;
       text-align: center;
-      font-weight: 600;
-      letter-spacing: -0.5px;
     }
 
     .input-group {
@@ -90,22 +85,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       width: 100%;
       padding: 16px 18px;
       padding-right: 52px;
-      border: none;
       border-radius: 10px;
       background: #1a1a1a;
       color: #e0e0e0;
-      font-size: 1.05rem;
-      transition: all 0.2s ease;
-    }
-
-    input::placeholder {
-      color: #777;
+      border: none;
     }
 
     input:focus {
       outline: none;
       box-shadow: 0 0 0 2px rgba(77, 159, 255, 0.25);
-      background: #1e1e1e;
     }
 
     .eye-icon {
@@ -113,60 +101,58 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       right: 18px;
       top: 50%;
       transform: translateY(-50%);
-      color: #888;
-      font-size: 1.3rem;
       cursor: pointer;
-      user-select: none;
-      transition: color 0.2s ease;
-    }
-
-    .eye-icon:hover {
-      color: #bbb;
     }
 
     button {
       width: 100%;
       padding: 16px;
-      margin: 16px 0 12px;
       background: #28a745;
       color: white;
       border: none;
       border-radius: 10px;
       font-size: 1.1rem;
-      font-weight: 600;
       cursor: pointer;
-      transition: background 0.25s ease;
-    }
-
-    button:hover {
-      background: #218838;
     }
 
     .signup-link {
       text-align: center;
-      color: #888;
-      font-size: 0.95rem;
       margin-top: 16px;
+      color: #888;
     }
 
     .signup-link a {
       color: #4d9fff;
       text-decoration: none;
-      font-weight: 500;
-    }
-
-    .signup-link a:hover {
-      text-decoration: underline;
     }
 
     .error {
-      color: #ff4d4d;
+      color: red;
       text-align: center;
-      margin: 16px 0;
-      font-size: 0.95rem;
+      margin: 10px 0;
     }
+
+    /* ✅ FORGOT PASSWORD AT BOTTOM */
+    .bottom-forgot {
+      position: fixed;
+      bottom: 15px;
+      left: 50%;
+      transform: translateX(-50%);
+    }
+
+    .bottom-forgot a {
+      color: #4d9fff;
+      text-decoration: none;
+      font-size: 0.9rem;
+    }
+
+    .bottom-forgot a:hover {
+      text-decoration: underline;
+    }
+
   </style>
 </head>
+
 <body>
 
 <div class="login-container">
@@ -178,18 +164,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
   <form method="post">
     <div class="input-group">
-      <input type="text" name="identifier" placeholder="Username or Email" required autocomplete="username">
+      <input type="text" name="identifier" placeholder="Username or Email" required>
     </div>
 
     <div class="input-group">
-      <input 
-        type="password" 
-        id="password" 
-        name="password"
-        placeholder="Password" 
-        required 
-        autocomplete="current-password"
-      >
+      <input type="password" id="password" name="password" placeholder="Password" required>
       <span class="eye-icon" id="togglePassword">
         <i class="fa-solid fa-eye"></i>
       </span>
@@ -203,18 +182,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   </div>
 </div>
 
+<!-- ✅ FORGOT PASSWORD LINK -->
+<div class="bottom-forgot">
+  <a href="forgot_password.php">Forgot Password?</a>
+</div>
+
 <script>
-// Password visibility toggle
 const togglePassword = document.getElementById('togglePassword');
 const passwordInput  = document.getElementById('password');
 
 togglePassword.addEventListener('click', () => {
-  const currentType = passwordInput.type;
-  passwordInput.type = currentType === 'password' ? 'text' : 'password';
-
-  const icon = togglePassword.querySelector('i');
-  icon.classList.toggle('fa-eye');
-  icon.classList.toggle('fa-eye-slash');
+  passwordInput.type = passwordInput.type === 'password' ? 'text' : 'password';
 });
 </script>
 

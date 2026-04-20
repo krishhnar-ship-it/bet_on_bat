@@ -1,24 +1,58 @@
 <?php
 // api/players.php
 header('Content-Type: application/json');
+header('Access-Control-Allow-Origin: *');
 
 require '../config.php';
 
-$match_id = $_GET['match_id'] ?? '';
-$action   = $_GET['action'] ?? 'get';
+$action      = $_GET['action'] ?? 'get';
 $player_name = $_GET['player'] ?? '';
-$event    = $_GET['event'] ?? '';
+$event       = $_GET['event'] ?? '';
+$team        = $_GET['team'] ?? '';
 
-if (empty($match_id)) {
-    echo json_encode(['success' => false, 'error' => 'Match ID required']);
-    exit;
-}
+// ── Price change rules ────────────────────────────────────────────────────────
+$priceRules = [
+    // Batting
+    'six'                 =>  6,
+    'four'                =>  4,
+    'double'              =>  2,
+    'single'              =>  1,
+    'dot'                 => -1,
+    'out_under_20'        => -30,
+    'fifty'               =>  10,
+    'century'             =>  20,
+    'high_strike_rate'    =>  8,
+    'very_high_strike_rate' => 15,
+    // Bowling
+    'wicket'              =>  25,
+    '5wickets'            =>  20,
+    'good_economy'        =>  10,
+    'poor_economy'        => -12,
+    'concede_six'         => -6,
+    'concede_four'        => -4,
+    'concede_five'        => -5,
+    'concede_three'       => -3,
+    'concede_two'         => -2,
+    'concede_one'         => -1,
+    // Fielding
+    'catch'               =>  10,
+    'direct_hit'          =>  10,
+    'save_boundary'       =>  5,
+    'miss_ball'           => -2,
+    'miss_field_four'     => -4,
+    'miss_field_six'      => -6,
+    'overthrow_one'       => -2,
+    'overthrow_two'       => -4,
+    'overthrow_four'      => -8,
+];
 
-// ====================== UPDATE PRICE ======================
+// ── ACTION: update_price ──────────────────────────────────────────────────────
 if ($action === 'update_price' && $player_name && $event) {
+    $change = $priceRules[$event] ?? 0;
 
-    $stmt = $pdo->prepare("SELECT * FROM players WHERE name = ? AND match_id = ?");
-    $stmt->execute([$player_name, $match_id]);
+    // Get current price from DB
+    $stmt = $pdo->prepare("SELECT player_id, current_price FROM players WHERE name = ?");
+    $stmt->execute([$player_name]);
     $player = $stmt->fetch(PDO::FETCH_ASSOC);
 
     if (!$player) {
@@ -26,73 +60,42 @@ if ($action === 'update_price' && $player_name && $event) {
         exit;
     }
 
-    $change = 0;
-    $note = '';
-
-    // Basic Events
-    if ($event === 'six') $change = 6;
-    elseif ($event === 'four') $change = 4;
-    elseif ($event === 'double') $change = 2;
-    elseif ($event === 'single') $change = 1;
-    elseif ($event === 'dot') $change = 1;
-    elseif ($event === 'wicket') $change = 25;
-    elseif ($event === 'catch') $change = 10;
-    elseif ($event === 'direct_hit') $change = 10;
-    elseif ($event === 'save_boundary') $change = 5;
-    elseif ($event === 'out_under_20') $change = -20;
-    elseif ($event === 'miss_ball') $change = -2;
-    elseif ($event === 'concede_six') $change = -6;
-    elseif ($event === 'concede_four') $change = -4;
-    elseif ($event === 'concede_five') $change = -5;
-    elseif ($event === 'concede_three') $change = -3;
-    elseif ($event === 'concede_two') $change = -2;
-    elseif ($event === 'concede_one') $change = -1;
-    elseif ($event === 'miss_field_four') $change = -4;
-    elseif ($event === 'miss_field_six') $change = -6;
-    elseif ($event === 'overthrow_one') $change = -2;
-    elseif ($event === 'overthrow_two') $change = -4;
-
-    // Milestone Bonuses
-    if ($event === 'fifty') $change += 10;      // Batsman 50 runs
-    if ($event === 'century') $change += 20;    // Batsman 100 runs
-
-    if ($event === '3wickets') $change += 6;
-    if ($event === '4wickets') $change += 8;
-    if ($event === '5wickets') $change += 10;
-    if ($event === '6wickets') $change += 12;
-    if ($event === '7wickets') $change += 14;
-    if ($event === '8wickets') $change += 16;
-    if ($event === '9wickets') $change += 18;
-
-    // Strike Rate & Economy
-    if ($event === 'high_strike_rate') $change += 8;   // >150
-    if ($event === 'very_high_strike_rate') $change += 15; // >180
-    if ($event === 'good_economy') $change += 10;      // <6
-    if ($event === 'poor_economy') $change -= 12;      // >10
-
     $new_price = max(100, $player['current_price'] + $change);
 
-    $stmt = $pdo->prepare("UPDATE players SET current_price = ?, last_updated = NOW() WHERE id = ?");
-    $stmt->execute([$new_price, $player['id']]);
+    // Update in DB
+    $upd = $pdo->prepare("UPDATE players SET current_price = ? WHERE player_id = ?");
+    $upd->execute([$new_price, $player['player_id']]);
 
     echo json_encode([
-        'success' => true,
-        'player' => $player_name,
-        'event' => $event,
-        'change' => $change,
-        'new_price' => $new_price,
-        'note' => $note
+        'success'   => true,
+        'player'    => $player_name,
+        'event'     => $event,
+        'change'    => $change,
+        'old_price' => $player['current_price'],
+        'new_price' => $new_price
     ]);
     exit;
 }
 
-// ====================== GET PLAYERS ======================
-$stmt = $pdo->prepare("SELECT * FROM players WHERE match_id = ? ORDER BY current_price DESC");
-$stmt->execute([$match_id]);
-$players = $stmt->fetchAll(PDO::FETCH_ASSOC);
+// ── ACTION: get_team ─────────────────────────────────────────────────────────
+if ($action === 'get_team' && $team) {
+    $stmt = $pdo->prepare(
+        "SELECT player_id, name, team, role, current_price, base_price
+         FROM players WHERE team = ? AND is_active = 1
+         ORDER BY role, name"
+    );
+    $stmt->execute([strtoupper($team)]);
+    $players = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    echo json_encode(['success' => true, 'players' => $players]);
+    exit;
+}
 
-echo json_encode([
-    'success' => true,
-    'players' => $players
-]);
+// ── ACTION: get all players ──────────────────────────────────────────────────
+$stmt = $pdo->query(
+    "SELECT player_id, name, team, role, current_price, base_price
+     FROM players WHERE is_active = 1
+     ORDER BY team, role, name"
+);
+$players = $stmt->fetchAll(PDO::FETCH_ASSOC);
+echo json_encode(['success' => true, 'players' => $players]);
 ?>
