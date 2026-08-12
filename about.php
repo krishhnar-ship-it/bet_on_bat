@@ -5,7 +5,7 @@ if (!isset($_SESSION['user_id'])) {
     header("Location: login.php");
     exit;
 }
-
+# this is my WPL project
 $userId = $_SESSION['user_id'];
 $stmt = $pdo->prepare("SELECT username, wallet, status FROM users WHERE id = ?");
 $stmt->execute([$userId]);
