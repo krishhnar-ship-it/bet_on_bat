@@ -73,7 +73,7 @@ $approved = ($user['status'] === 'approved');
   <main class="about-container">
     <h1>About Bet On Bat</h1>
 
-    
+    <p>
       Bet On Bat is a next-generation virtual stock trading platform that lets users buy and sell shares of real cricket players during live international and IPL matches. 
       Our platform transforms cricket into a skill-based trading experience where player prices fluctuate in real-time based on their on-field performance.
     </p>
